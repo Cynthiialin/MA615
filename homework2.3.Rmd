@@ -1,0 +1,79 @@
+---
+title: "Homework2.3"
+author: "Yuanyuan Lin"
+date: "2019/9/19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)                ## loading the entire knitr package
+library(ggplot2)              ## the only tidyverse library you need is ggplot2
+library(esquisse)             ## use esquisse to setup the basic plots
+
+library(kableExtra)
+library(magrittr)
+opts_chunk$set(echo = TRUE)
+```
+
+# Class assignment:
+
+Using the MPG dataset, which is available with the ggplot2 library, produce a document that includes the following elements: headers, text, tables, and plots.  
+
+Tables should include a comparison of city and highway mileage by the class of car and the best three car models for city and highway mileage for all the years in which data is available.  
+
+Plot the data displaying as much of the data as you can. Put continuous variables on the axes and include a locally smoothed regression line to show the relationship with mileage.  Also make a box plot comparing city and highway MPG by class of car.  
+
+
+## Tables
+
+Comparison of city and highway mileage by the class of car 
+```{r include = FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+
+data(mpg)     ## load the data
+
+mpg$cyl <- as.factor(mpg$cyl)   ## convert discrete variables to factors so that they plot
+mpg$drv <- as.factor(mpg$drv)   ## as different colors, not gradations of one color
+
+mpg$cty <- as.double(mpg$cty)
+                                
+class <- unique(mpg$class)      ## define a vector for car classes
+
+cty_mean <- rep(0, length(class))  ## define variables to hold mean mileage
+hwy_mean <- rep(0,length(class))   ## for each class of car
+
+for(i in 1:length(class)){                          ## calculate the mean city and 
+  cty_mean[i] = mean(mpg$cty[mpg$class==class[i]])  ## highway mileage for each 
+  hwy_mean[i] = mean(mpg$hwy[mpg$class==class[i]])  ## class of car
+}
+
+cty_mean <- round(cty_mean, 2)                      ## round the results to 2 decimal pla
+hwy_mean <- round(hwy_mean, 2)
+
+tbl_1 <- cbind(class, cty_mean,hwy_mean)      ## form an array for the table
+
+
+
+kable(tbl_1, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("Class", "City", "Highway"), 
+      caption = "Mean City and Highway MPG by Car Class" )      
+
+tbl_1
+
+
+
+
+```
+
+Best three car models for city and highway mileage for all the years
+```{r}
+tbl_1 <- cbind(class, cty_mean,hwy_mean)      ## form an array for the table
+
+
+
+kable(tbl_1, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("Class", "City", "Highway"), 
+      caption = "Mean City and Highway MPG by Car Class" )      
+
+tbl_1
+```
