@@ -443,8 +443,8 @@ sharename
 ```
 
 ```{r eval=FALSE}
-#between 1801 and 2001
-nineth_cen<-filter(sample,year>"1800"&year<"2002")
+#names were used in the 19th century but have not been used in the 21sth century
+nineth_cen<-filter(sample,year>"2000")
 nineth_cen
 name_in<-unique(nineth_cen$name)
 name_in
