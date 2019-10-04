@@ -119,6 +119,74 @@ max_gdp<-filter(summary,GDP_change==max(GDP_change))
 max_gdp
 ```
 
+```{r}
+nrow(data)
+for(i in 1:nrow(data)){
+  a=data$pop[i]
+  b=data$pop[i+1]
+  c <- (b-a)/a
+  data$negative_check[i]<-c
+}
+```
+
+```{r}
+country.unique<-unique(data$country)
+for(p in 1:length(country.unique)){
+  if(data$country[p]!=data$country[p+1]){
+    data$negative_check[p]<-1
+  }
+}
+```
+
+```{r}
+getcountry<-rep(0,1703)
+for(g in 1:length(getcountry)){
+  if(data$negative_check[g]<0){
+    getcountry<-data$country[g]
+  }
+}
+getcountry
+```
+
+```{r}
+getyear<-rep(0,1703)
+for(g in 1:length(getyear)){
+  if(data$negative_check[g]<0){
+    getyear<-data$year[g]
+  }
+}
+getyear
+```
+
+```{r}
+for(i in 1:1703){
+  e=data$gdpPercap[i]
+  f=data$gdpPercap[i+1]
+  g <- (f-e)/e
+  data$gdp_check[i]<-g
+}
+```
+
+```{r}
+for(p in 1:length(country.unique)){
+  if(data$country[p]!=data$country[p+1]){
+    data$gdp_check[p]<-0
+  }
+}
+```
+
+```{r}
+max(data$gdp_check,na.rm=TRUE)
+```
+
+```{r}
+#mac_gdp_cou<-filter(data,gdp_check==8.49069)
+#mac_gdp_cou
+#answer is Gambia, Africa
+```
+
+
+
 ##Question 2
 
 ```{r}
