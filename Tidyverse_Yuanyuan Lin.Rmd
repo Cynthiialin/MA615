@@ -1,0 +1,436 @@
+---
+title: "Tidyverse_Yuanyuan Lin"
+author: "Yuanyuan Lin"
+date: "2019/10/3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Question 1
+
+```{r echo=FALSE, message=FALSE}
+library(gapminder)
+library(dplyr)
+library(AER)
+library(ggplot2)
+library(kableExtra)
+```
+(1).There are five continents in the data set
+```{r}
+data<-gapminder
+unique(data$continent) 
+```
+(2).There are 142 countries included in the data set.
+```{r}
+unique1<-unique(data$country)
+unique1
+```
+
+(3).Countries per continent is shown in the table below
+```{r}
+data%>%group_by(data$continent) %>% summarise(number = n())
+```
+(4).total population per continent and GDP per capita group by continent
+```{r}
+table0<-data%>%group_by(continent)%>%summarise(mean_GPD_per_capita=mean(gdpPercap),mean_pop=mean(pop))
+table0
+```
+
+(5)GDP per capita for the countries in each continent, contrasting the years 1952 and 2007.
+```{r}
+table1<-gapminder2007 <- filter(data,year == 2007)%>%group_by(continent)%>%summarise(mean_GPD_per_capita_2007=mean(gdpPercap))
+table1
+```
+
+```{r echo=FALSE, message=FALSE}
+table2<-gapminder1952 <- filter(data,year == 1952)%>%group_by(continent)%>%summarise(mean_GPD_per_capita_1952=mean(gdpPercap))
+table2
+mean_GPD_per_capita_1952<-table2$mean_GPD_per_capita_1952
+new_table<-data.frame(cbind(table1,mean_GPD_per_capita_1952))
+new_table
+```
+
+```{r}
+kable_1<-kable(new_table, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("continent", "mean_GPD_per_capita_2007", "mean_GPD_per_capita_1952"), 
+      caption = "Total population and GDP per capita by continent" )
+kable_1
+```
+
+(6)plot that summarizes GDP per capita for the countries in each continent, contrasting the years 1952 and 2007.
+
+```{r}
+ggplot(table2,aes(x = continent,y=mean_GPD_per_capita_1952,color = continent)) +
+  geom_point(size=4) +
+  ggtitle("1952 GDP by Continent") +
+  xlab("Continent") + ylab("Avg. GDP per Capita in 1952") +
+  theme_classic()
+```
+
+```{r}
+ggplot(table1,aes(x = continent,y=mean_GPD_per_capita_2007)) +
+  geom_point(size=4,color="darkgreen") +
+  ggtitle("2007 GDP by Continent") +
+  xlab("Continent") + ylab("Avg. GDP per Capita in 2007") +
+  theme_classic()
+```
+
+
+
+```{r}
+unique1<-unique(data$country)
+country<-double(length(unique1))
+summary<-data.frame(matrix(double(142*3),nrow = 142))
+colnames(summary)<-c("Country","GDP_change","Population_change")
+```
+
+
+
+```{r echo=FALSE}
+#install schoolmath
+library(schoolmath)
+for(i in (seq(1:length(unique1)))){
+  table3<-data[data$country==unique1[i],]
+  last<-table3[table3$year==2007,]
+  first<-table3[table3$year==1952,]
+  summary[i,1]<-unique1[i]
+  summary[i,2]<-(last$gdpPercap-first$gdpPercap)/first$gdpPercap
+  summary[i,3]<-(last$pop-first$pop)/first$pop
+
+}
+
+summary[,1]<-unique1
+summary1<-summary
+summary1
+
+```
+
+```{r}
+negative_gro <- filter(summary1,Population_change<0)
+negative_gro
+```
+
+
+```{r}
+max_gdp<-filter(summary,GDP_change==max(GDP_change))
+max_gdp
+```
+
+##Question 2
+
+```{r}
+
+#d<-data("GSS7402", package = "AER")
+data('Fertility')
+data2<-Fertility
+MM<-data2[data2$gender1=='male' & data2$gender2=='male',]
+MF<-data2[data2$gender1=='male' & data2$gender2=='female',]
+FF<-data2[data2$gender1=='female' & data2$gender2=='female',]
+FM<-data2[data2$gender1=='female' & data2$gender2=='male',]
+frequency<-c(nrow(MM),nrow(MF),nrow(FF),nrow(FM))
+combinations<-c("MM","MF","FF","FM")
+da<-data.frame(cbind(frequency,combinations))
+ggplot(da,aes(y=frequency,x=combinations,fill=combinations))+
+  geom_bar(stat="identity")+theme_minimal()+
+  ggtitle("Different combinations of first two children")
+
+
+
+Hispanic<-data2[data2$morekids=='yes' & data2$hispanic=='yes',]
+NotHispanic<-data2[data2$morekids=='yes' & data2$hispanic=='no',]
+Afam<-data2[data2$morekids=='yes' & data2$afam =='yes',]
+NotAfam<-data2[data2$morekids=='yes' & data2$afam =='no',]
+notmorekids<-data2[data2$morekids=='yes' & data2$work =='yes',]
+morekids<-data2[data2$morekids=='yes' & data2$work =='no',]
+
+
+frequencyth<-c(nrow(Hispanic),nrow(NotHispanic),nrow(Afam),nrow(NotAfam),nrow(notmorekids),nrow(morekids))
+combinationsth<-c("Hispanic","NotHispantic","Afam","NotAfam","nortmorekids","morekids")
+dat<-data.frame(cbind(frequencyth,combinationsth))
+ggplot(dat,aes(y=frequencyth,x=combinationsth,fill=combinationsth))+
+  geom_bar(stat="identity")+theme_minimal()+
+  ggtitle("Frequency of more than two children by race and ethnicity")
+```
+
+```{r}
+twoMM<-data2[data2$gender1=='male' & data2$gender2=='male'& data2$age<29,]
+twoMF<-data2[data2$gender1=='male' & data2$gender2=='female'& data2$age<29,]
+twoFF<-data2[data2$gender1=='female' & data2$gender2=='female'& data2$age<29,]
+twoFM<-data2[data2$gender1=='female' & data2$gender2=='male'& data2$age<29,]
+frequency1<-c(nrow(twoMM),nrow(twoMF),nrow(twoFF),nrow(twoFM))
+combinations1<-c("twoMM","twoMF","twoFF","twoFM")
+da<-data.frame(cbind(frequency1,combinations1))
+
+thirMM<-data2[data2$gender1=='male' & data2$gender2=='male'& data2$age>29,]
+thirMF<-data2[data2$gender1=='male' & data2$gender2=='female'& data2$age>29,]
+thirFF<-data2[data2$gender1=='female' & data2$gender2=='female'& data2$age>29,]
+thirFM<-data2[data2$gender1=='female' & data2$gender2=='male'& data2$age>29,]
+nrow(twoMM)==nrow(thirMM)
+nrow(twoMF)==nrow(thirMF)
+nrow(twoFF)==nrow(thirFF)
+nrow(twoFM)==nrow(thirFM)
+frequency2<-c(nrow(thirMM),nrow(thirMF),nrow(thirFF),nrow(thirFM))
+combinations2<-c("thirMM","thirMF","thirFF","thirFM")
+da<-data.frame(cbind(frequency2,combinations2))
+
+par(mfrow=c(1,2))
+ggplot(da,aes(y=frequency1,x=combinations1,fill=combinations))+
+  geom_bar(stat="identity")+theme_minimal()+
+  ggtitle("Different combinations of first two children for women in their 20s")
+
+ggplot(da,aes(y=frequency2,x=combinations2,fill=combinations))+
+  geom_bar(stat="identity")+theme_minimal()+
+  ggtitle("Different combinations of first two children for women older than 29")
+```
+
+ 
+##Question 3
+
+
+```{r}
+library(knitr)
+datt<-mtcars
+dattt<-mpg
+carname<-rownames(datt)
+library(stringr)
+sum(str_count(carname,'e'))
+```
+
+```{r}
+sum(str_count(carname,'Merc'))
+```
+
+
+```{r}
+sum(str_count(dattt$manufacturer,'mercury'))
+```
+
+```{r}
+#mercmtcars<-mtcars[mtcars$]
+
+# [1] 3 4 3 3 2 3 1 1 2 2
+mtcarsmerc<-datt[which(str_count(carname,'Merc') %in% c(1)),]
+mtcarsmerc
+mpgmerc<-dattt[which(str_count(dattt$manufacturer,'mercury') %in% c(1)),]
+mpgmerc
+l<-data.frame(unclass(summary(mtcarsmerc$mpg)), check.names = FALSE, stringsAsFactors = FALSE)
+table<-knitr::kable(l)
+table
+#colnames(table)<-c('summary','v')
+```
+
+
+##Question 4
+```{r}
+library(babynames)
+baby_names<-babynames
+```
+
+```{r}
+sample<-baby_names[sample(nrow(baby_names), 500000), ]
+```
+
+five most popular boy names and girl names in year 1880
+
+
+```{r echo=FALSE, message=FALSE}
+sample1<-filter(sample,year==1880)%>%
+  group_by(sex,name)%>%
+  summarize(total=sum(n))%>%
+  arrange(desc(total))
+sample1_1<-filter(sample1,sex=="M")
+sample1_1_1<- rename(sample1_1, sex_f = sex,name_f=name,total_f=total)
+sample1_1_1
+top5_1880_female<-sample1_1_1[1:5,]
+top5_1880_female
+```
+
+```{r echo=FALSE, message=FALSE}
+sample1_2<-filter(sample1,sex=="F")
+sample1_2
+sample1_1_2<- rename(sample1_2, sex_m = sex,name_m=name,total_m=total)
+sample1_1_2
+top5_1880_male<-sample1_1_2[1:5,]
+top5_1880_male
+```
+
+```{r}
+new_table1<-data.frame(cbind(top5_1880_female,top5_1880_male))
+new_table1
+kable_2<-kable(new_table1, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("sex_f", "name_f", "total_f","sex_m","name_m","total_m"), 
+      caption = "Most popular boy and girl names in 1880" )
+kable_2
+```
+
+
+five most popular boy names and girl names in year 1920
+```{r echo=FALSE, message=FALSE}
+sample2<-filter(sample,year==1920)%>%
+  group_by(sex,name)%>%
+  summarize(total=sum(n))%>%
+  arrange(desc(total))
+sample2_1<-filter(sample2,sex=="M")
+sample2_1_1<- rename(sample2_1, sex_f = sex,name_f=name,total_f=total)
+sample2_1_1
+top5_1920_female<-sample2_1_1[1:5,]
+top5_1920_female
+
+```
+
+```{r echo=FALSE, message=FALSE}
+sample2_2<-filter(sample2,sex=="F")
+sample2_2
+sample2_1_2<- rename(sample1_2, sex_m = sex,name_m=name,total_m=total)
+sample2_1_2
+top5_1920_male<-sample2_1_2[1:5,]
+top5_1920_male
+```
+
+```{r}
+new_table2<-data.frame(cbind(top5_1920_female,top5_1920_male))
+new_table2
+kable_3<-kable(new_table2, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("sex_f", "name_f", "total_f","sex_m","name_m","total_m"), 
+      caption = "Most five popular boy and girl names in 1920" )
+kable_3
+```
+
+ five most popular boy names and girl names in year 1960
+```{r echo=FALSE, message=FALSE}
+sample3<-filter(sample,year==1960)%>%
+  group_by(sex,name)%>%
+  summarize(total=sum(n))%>%
+  arrange(desc(total))
+sample3_1<-filter(sample3,sex=="M")
+sample3_1_1<- rename(sample3_1, sex_f = sex,name_f=name,total_f=total)
+sample3_1_1
+top5_1960_female<-sample3_1_1[1:5,]
+top5_1960_female
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+sample3_2<-filter(sample3,sex=="F")
+sample3_2
+sample3_1_2<- rename(sample3_2, sex_m = sex,name_m=name,total_m=total)
+sample3_1_2
+top5_1960_male<-sample3_1_2[1:5,]
+top5_1960_male
+```
+
+```{r}
+new_table3<-data.frame(cbind(top5_1960_female,top5_1960_male))
+new_table3
+kable_4<-kable(new_table3, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("sex_f", "name_f", "total_f","sex_m","name_m","total_m"), 
+      caption = "Most five popular boy and girl names in 1960" )
+kable_4
+```
+ 
+ five most popular boy names and girl names in year 2000
+```{r}
+sample4<-filter(sample,year==2000)%>%
+  group_by(sex,name)%>%
+  summarize(total=sum(n))%>%
+  arrange(desc(total))
+sample4_1<-filter(sample4,sex=="M")
+sample4_1_1<- rename(sample4_1, sex_f = sex,name_f=name,total_f=total)
+sample4_1_1
+top5_2000_female<-sample4_1_1[1:5,]
+top5_2000_female
+```
+
+```{r echo=FALSE, message=FALSE}
+
+sample4_2<-filter(sample4,sex=="F")
+sample4_2
+sample4_1_2<- rename(sample4_2, sex_m = sex,name_m=name,total_m=total)
+sample4_1_2
+top5_2000_male<-sample4_1_2[1:5,]
+top5_2000_male
+```
+
+```{r}
+new_table4<-data.frame(cbind(top5_2000_female,top5_2000_male))
+new_table4
+kable_5<-kable(new_table4, format = "latex", booktabs=TRUE, digits = 2,     ## call kable to make the table
+      col.names = c("sex_f", "name_f", "total_f","sex_m","name_m","total_m"), 
+      caption = "Most five popular boy and girl names in 2000" )
+kable_5
+```
+
+
+```{r}
+boyname<-subset(baby_names,baby_names$sex=="M",select = name)
+
+girlname<-subset(baby_names,baby_names$sex=="F",select = name)
+samename<-inner_join(boyname,girlname,by="name")
+sharename<-unique(samename)
+sharename
+```
+
+```{r eval=FALSE}
+#between 1801 and 2001
+nineth_cen<-filter(sample,year>"1800"&year<"2002")
+nineth_cen
+name_in<-unique(nineth_cen$name)
+name_in
+```
+
+```{r}
+newdata<-filter(sample,year>1880&year<2017)
+newdata
+
+```
+
+```{r}
+Donald <- sample[sample$name=="Donald",]
+Donald
+c1<-sum(Donald$n)
+c1
+```
+
+```{r}
+Hilary <- sample[sample$name=="Hilary",]
+Hilary
+c2<-sum(Hilary$n)
+```
+
+```{r}
+Hillary <- sample[sample$name=="Hillary",]
+Hillary
+c3<-sum(Hillary$n)
+c3
+```
+
+```{r}
+Joe <- sample[sample$name=="Joe",]
+Joe
+c4<-sum(Joe$n)
+c4
+```
+
+```{r}
+Barrack <- sample[sample$name=="Barrack",]
+Barrack
+c5<-sum(Barrack$n)
+c5
+```
+
+```{r}
+fren<-c(374245,4602,7750,113157,0)
+fren
+Name<-c("Donald","Hilary","Hillary","Joe","Barrack")
+frenquen<-data.frame(cbind(Name,fren))
+```
+
+```{r}
+ggplot(frenquen,aes(y=fren,x=Name))+
+  geom_bar(stat="identity",color="darkgreen",fill="darkgreen")+theme_minimal()+
+  ggtitle("Relative Frequency of the names over years 1880 through 2017")
+```
