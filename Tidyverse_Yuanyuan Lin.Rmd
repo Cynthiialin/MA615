@@ -254,6 +254,11 @@ ggplot(da,aes(y=frequency2,x=combinations2,fill=combinations))+
   ggtitle("Different combinations of first two children for women older than 29")
 ```
 
+```{r}
+
+ggplot(data2)+aes(x=afam,fill=hispanic)+geom_bar(position = "fill")+facet_grid(.~morekids)
+```
+
  
 ##Question 3
 
@@ -276,6 +281,7 @@ sum(str_count(carname,'Merc'))
 sum(str_count(dattt$manufacturer,'mercury'))
 ```
 
+
 ```{r}
 #mercmtcars<-mtcars[mtcars$]
 
@@ -288,6 +294,11 @@ l<-data.frame(unclass(summary(mtcarsmerc$mpg)), check.names = FALSE, stringsAsFa
 table<-knitr::kable(l)
 table
 #colnames(table)<-c('summary','v')
+```
+
+```{r}
+knitr::kable(mtcarsmerc)
+knitr::kable(mpgmerc)
 ```
 
 
@@ -491,7 +502,7 @@ c5
 ```
 
 ```{r}
-fren<-c(374245,4602,7750,113157,0)
+fren<-c(374245/500000,4602/500000,7750/500000,113157/500000,0/500000)
 fren
 Name<-c("Donald","Hilary","Hillary","Joe","Barrack")
 frenquen<-data.frame(cbind(Name,fren))
