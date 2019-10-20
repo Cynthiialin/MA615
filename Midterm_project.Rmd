@@ -1,0 +1,323 @@
+---
+title: "Midterm_project"
+author: "Yuanyuan Lin"
+date: "2019/10/10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#install.packages('psych')
+#install.packages('GPArotation')
+
+
+```
+
+```{r}
+library(psych)
+library(GPArotation)
+library(tidyverse)
+library(esquisse)
+library(ggthemes)
+library(ggplot2)
+```
+
+
+
+```{r}
+Survey<-read.csv("Survey.csv")
+```
+
+
+
+```{r}
+Survey<-na.omit(Survey)
+```
+
+```{r}
+#head(Survey)
+```
+
+
+
+
+```{r}
+Survey1<-Survey[,(1:243)]
+```
+
+```{r}
+show<-Survey %>%
+  filter(!is.na(Survey$V4..Important.in.life..Family)) %>%
+  count(Survey$V4..Important.in.life..Family)
+
+show[1,1]='not answered'
+show[2,1]='very important'
+show[3,1]='rather important'
+show[4,1]='not very important'
+show[5,1]='not at all important'
+show<-as.data.frame(show)
+show
+
+```
+
+
+
+
+```{r}
+show1<-Survey %>%
+  filter(!is.na(Survey$V23..Satisfaction.with.your.life)) %>%
+  count(Survey$V23..Satisfaction.with.your.life)
+
+show1[1,1]='not answered'
+show1[2,1]='completely dissatisfied'
+show1[3,1]='20% satisfied'
+show1[4,1]='30% satisfied'
+show1[5,1]='40% satisfied'
+show1[6,1]='50% satisfied'
+show1[7,1]='60% satisfied'
+show1[8,1]='70% satisfied'
+show1[9,1]='80% satisfied'
+show1[10,1]='90% satisfied'
+show1[11,1]='completely satisfied'
+show1<-as.data.frame(show1)
+show1<- rename(show1, satisfication_with_life = `Survey$V23..Satisfaction.with.your.life`)
+show1
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+ggplot(show1) +
+ aes(x = satisfication_with_life, fill = satisfication_with_life,
+     colour = satisfication_with_life, weight = n) +
+ geom_bar() +
+ scale_fill_hue() +
+ scale_color_hue() +
+ theme_gray()+
+ theme( axis.text.x  = element_text(angle=35, hjust=1, vjust=0.9))+
+ labs(x = "Statisfication with Life", y = "Number of Respondents") +
+  ggtitle("Do you Statistify with you Life?")
+```
+
+```{r}
+ggplot(show1) +
+ aes(x = satisfication_with_life, y = n, fill = satisfication_with_life, colour = satisfication_with_life) +
+ geom_boxplot() +
+ scale_fill_hue() +
+ scale_color_hue() +
+ theme_gray()+
+ theme( axis.text.x  = element_text(angle=35, hjust=1, vjust=0.9))+
+ labs(x = "Statisfication with Life", y = "Number of Respondents") +
+  ggtitle("Box?")
+
+```
+
+
+```{r}
+show2<-Survey %>%
+  filter(!is.na(Survey$V240..Sex) & !is.na(Survey$V242..Age)) %>%
+  group_by(Survey$V240..Sex, Survey$V242..Age) %>%
+  count()
+show2$`Survey$V242..Age` <- cut(show2$`Survey$V242..Age`, 
+                       breaks = c(-Inf, 25, 40, 55, 65,Inf), 
+                      labels = c("15-25 years", "26-40 years", "41-55 years", "56-65 years", "66-70 years"), 
+                       right = FALSE)
+show2<-as.data.frame(show2)
+
+#show2[show2 =='1']<-"Male"
+#show2[show2 =='2']<-"Female"
+#show2
+```
+
+```{r}
+show2<- rename(show2, Age =`Survey$V242..Age`)
+#show2
+ggplot(show2) +
+ aes(x = Age, y = n, fill = Age, colour = Age) +
+ geom_violin(adjust = 1.6, scale = "area") +
+ scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+ theme_pander() +
+ theme(legend.position = "top") +
+ facet_wrap(vars(`Survey$V240..Sex`))+
+ theme( axis.text.x  = element_text(angle=35, hjust=1, vjust=0.9))+
+ labs(x = "Age", y = " Respondents Distribution") +
+  ggtitle("Distribution of Number of Respondents among Age Group in Male/Female")
+```
+
+```{r}
+Survey<- rename(Survey, Highest_Education_Level = V248..Highest.educational.level.attained)
+Survey<- rename(Survey, Year_of_Birth = V241..Year.of.birth)
+```
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE, fig.height=1.5, fig.width=8)
+ggplot(Survey) +
+ aes(x = Highest_Education_Level, y = Year_of_Birth, colour = Year_of_Birth, size = Year_of_Birth) +
+ geom_point() +
+ scale_color_distiller(palette = "PRGn") +
+ theme_few() +
+ facet_wrap(vars(V240..Sex))+
+theme( axis.text.x  = element_text(angle=35, hjust=1, vjust=0.9))+
+  ggtitle("Scatter Plot between Highest Education Level and Year of Birth in Female/Male")
+```
+
+
+```{r}
+show4<-Survey[,(9:19)]
+show4<- rename(show4, Independence = V12..Important.child.qualities..independence)
+show4<- rename(show4, Hard_Work = V13..Important.child.qualities..Hard.work)
+show4<- rename(show4, Responsibility = V14..Important.child.qualities..Feeling.of.responsibility)
+show4<- rename(show4, Imagination = V15..Important.child.qualities..Imagination)
+show4<- rename(show4, Tolerance = V16..Important.child.qualities..Tolerance.and.respect.for.other.people)
+show4<- rename(show4, Thrift = V17..Important.child.qualities..Thrift.saving.money.and.things)
+show4<- rename(show4, Determination = V18..Important.child.qualities..Determination..perseverance)
+show4<- rename(show4, Religious_faith = V19..Important.child.qualities..Religious.faith)
+show4<- rename(show4,Unselfishness = V20..Important.child.qualities..Unselfishness)
+show4<- rename(show4, Obedience = V21..Important.child.qualities..Obedience)
+show4<- rename(show4, Self_expression = V22..Important.child.qualities..Self.expression)
+#show4
+condition <- c("Independence" , "Hard_Work" , "Responsibility","Imagination","Tolerance","Thrift","Determination","Religious_faith","Unselfishness","Obedience","Self_expression") 
+```
+
+```{r}
+y1<-count(show4,Independence)
+y2<-count(show4,Hard_Work)
+y2
+y<-data.frame(cbind(y1,y2))
+y
+```
+
+```{r}
+Education<-Survey$V52..A.university.education.is.more.important.for.a.boy.than.for.a.girl
+Age<-Survey$V242..Age
+
+show5_new<-data.frame(cbind(Education,Age))
+
+show5_new$Age <- cut(show5_new$Age, 
+                       breaks = c(-Inf, 25, 40, 55, 65,Inf), 
+                      labels = c("15-25 years", "26-40 years", "41-55 years", "56-65 years", "66-70 years"), 
+                       right = FALSE)
+#show5_new
+```
+
+
+
+```{r}
+ggplot(show5_new) +
+ aes(x = Education, fill = Education, colour = Education) +
+ geom_histogram(bins = 10L) +
+ scale_fill_distiller(palette = "Set3") +
+ scale_color_distiller(palette = "Set3") +
+ theme_wsj() +
+ facet_wrap(vars(Age), scales = "free_x")+
+ labs(x = "Age in Range", y = " Number of Respondents ") +
+ ggtitle("University Education")
+```
+
+```{r}
+multi = Survey
+Survey$is_ds = as.character(ifelse(Survey$V240..Sex==1,"M","F"))
+foo <- Survey %>%
+  filter(!is.na(is_ds)) %>%
+  group_by(is_ds) %>%
+  count()
+
+global_ds <- foo %>%
+  filter(is_ds == "M") %>%
+  .$n / sum(foo$n) * 100
+
+p1 <- foo %>%
+  mutate(percentage = str_c(as.character(round(n/sum(foo$n)*100,1)), "%")) %>%
+  ggplot(aes(is_ds, n, fill = is_ds)) +
+  geom_col() +
+  geom_label(aes(label = percentage), position = position_dodge(width = 1))+
+  labs(x = "Gender", y = "Respondents") +
+  theme(legend.position = "none") +
+  ggtitle("Gender Frequency")
+p1
+```
+
+```{r}
+exp_code = Survey$V242..Age
+expml = as.character(Survey$V229..Employment.status)
+multi$is_ds=as.character(Survey$V240..Sex)
+multi$is_ds = ifelse(multi$is_ds==1,"M","F")
+multi$exp_ml=expml
+multi$exp_code = exp_code
+M=sum(as.numeric(ifelse(Survey$V240..Se=="1",1,0)))
+Fe = 2232-1084
+get_binCI <- function(x,n){
+  as_data_frame(setNames(as.list(binom.test(x,n)$conf.int),c("lwr","upr")))}
+multi %>%
+  filter(!is.na(exp_code) & !is.na(exp_ml) & !is.na(is_ds)) %>%
+  group_by(is_ds, exp_code, exp_ml) %>%
+  count() %>%
+  spread(is_ds, n, fill = 0) %>%
+  mutate(frac = M/(M+Fe)*100,
+         lwr = get_binCI(M,(M+Fe))[[1]]*100,
+         upr = get_binCI(M,(M+Fe))[[2]]*100,
+         sum = M+Fe,
+         err = mean(c(frac-lwr, upr-frac))
+         ) %>%
+  ggplot(aes(exp_code, exp_ml, size = sum, color = frac)) +
+  geom_point() +
+  scale_color_gradient(low = "#ffdf3f", high = "#DB7093") +
+  scale_size(trans = "log10") +
+  theme(axis.text.x  = element_text(angle=45, hjust=1, vjust=0.9)) +
+  labs(color = "Gender", size = "# replies",
+       x = "Age", y = "Employment Status") +
+  ggtitle("Age and Employment Status by Gender")
+
+```
+
+```{r}
+Religion<-Survey$V147..Religious.person
+Age<-Survey$V242..Age
+
+show6_new<-data.frame(cbind(Religion,Age))
+
+show6_new$Age <- cut(show6_new$Age, 
+                       breaks = c(-Inf, 25, 40, 55, 65,Inf), 
+                      labels = c("15-25 years", "26-40 years", "41-55 years", "56-65 years", "66-70 years"), 
+                       right = FALSE)
+#show6_new
+```
+
+```{r}
+#esquisser(p1)
+```
+```{r}
+ggplot(show6_new) +
+ aes(x = Age, y = Religion, fill = Age, colour = Age) +
+ geom_violin(adjust = 1L, scale = "area") +
+ scale_fill_viridis_d(option = "plasma") +
+ scale_color_viridis_d(option = "plasma") +
+ theme_par()+
+theme( axis.text.x  = element_text(angle=25, hjust=1, vjust=0.9))+
+  ggtitle("Whether You are a Religious Person or Not")
+```
+
+```{r}
+paralle<-fa.parallel(Survey1,fm='minres',fa='fa')
+```
+
+```{r}
+factor <- fa(Survey1,nfactors = 20,rotate = "oblimin",fm="minres")
+print(factor)
+```
+
+```{r}
+#write.csv(Survey,file="Survey_data.csv")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
