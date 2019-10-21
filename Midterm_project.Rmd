@@ -294,7 +294,7 @@ show6_new$Age <- cut(show6_new$Age,
 ```
 
 ```{r}
-esquisser(show6_new)
+#esquisser(show6_new)
 ```
 
 ```{r}
@@ -321,11 +321,11 @@ theme( axis.text.x  = element_text(angle=25, hjust=1, vjust=0.9))+
 ```
 
 ```{r}
-paralle<-fa.parallel(Survey1,fm='minres',fa='fa')
+#paralle<-fa.parallel(Survey1,fm='minres',fa='fa')
 ```
 
 ```{r}
-factor <- fa(Survey1,nfactors = 20,rotate = "oblimin",fm="minres")
+#factor <- fa(Survey1,nfactors = 20,rotate = "oblimin",fm="minres")
 print(factor)
 ```
 
