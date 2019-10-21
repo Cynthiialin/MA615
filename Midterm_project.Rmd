@@ -294,8 +294,21 @@ show6_new$Age <- cut(show6_new$Age,
 ```
 
 ```{r}
-#esquisser(p1)
+esquisser(show6_new)
 ```
+
+```{r}
+ggplot(show6_new) +
+ aes(x = Religion, fill = Age, colour = Age) +
+ geom_histogram(bins = 30L) +
+ scale_fill_brewer(palette = "BuPu") +
+ scale_color_brewer(palette = "BuPu") +
+ theme_par()+
+  ggtitle("Age Counts for Religion")
+```
+
+
+
 ```{r}
 ggplot(show6_new) +
  aes(x = Age, y = Religion, fill = Age, colour = Age) +
