@@ -26,7 +26,6 @@ mp5 <- mp1 + coord_map("gnomonic", xlim=c(-180,180), ylim=c(-60, 90))
 
 mp6 <- mp1 + coord_map("rectangular", parameters = 0, xlim=c(-180,180), ylim=c(-60, 90))
 mp7 <- mp1 + coord_map("cylequalarea", parameters = 0, xlim=c(-180,180), ylim=c(-60, 90))
-
 shinyApp(
   ui = fluidPage(
     selectInput("Projection","Different World Map Projection",
