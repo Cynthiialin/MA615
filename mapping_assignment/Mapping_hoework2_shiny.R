@@ -8,6 +8,7 @@
 #
 library(classInt)
 library(tmap)
+
 library(ggplot2)
 library(maps)
 library(mapdata)
