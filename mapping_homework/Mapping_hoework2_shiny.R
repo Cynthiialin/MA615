@@ -17,11 +17,8 @@ library(knitr)
 library(maptools)
 library(maps)
 library(ggmap)
-
 library(mapproj)
 library(shiny)
-
-
 library(readxl)
 library(nlme)
 library(tidyverse)
@@ -38,41 +35,51 @@ library(tidyverse)
 library(ggthemes)
 library(psych)
 library(sf)
+library(rgdal)
+library(sp)
+library(rgeos)
+library(ggthemes)
 
 #s.sf <- readOGR(dsn=".",layer ="Colleges_and_Universities")
+#College<-readOGR("/Users/yuanyuanlin/Desktop/mssp/MA615/615/mapping_homework/Colleges_and_Universities.shp")
 
-s.sf<-as.data.frame(s.sf)
-college<-read.csv("Colleges.csv")
+Public_Schools<-readOGR("/Users/yuanyuanlin/Desktop/mssp/MA615/615/mapping_homework/Public_Schools.shp")
+Public_Schools<-as.data.frame(Public_Schools)
+
+
+
+
+Boston<-subset(Public_Schools,Public_Schools$CITY=="Boston")
+
+Roxbury<-subset(Public_Schools,Public_Schools$CITY=="Roxbury")
+
+#s.sf<-as.data.frame(s.sf)
+#college<-read.csv("Colleges.csv")
 leaflet(options = leafletOptions(minZoom = 0, maxZoom = 18))
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addMarkers(lng=-71.09971, lat=42.34956, popup="Boston University")%>%
-  addMarkers(lng=-71.12006, lat=42.36523, popup="Harvard Business School")%>%
-  addCircles(data = s.sf, lat = ~Latitude, lng = ~Longitude, weight = 3)
-m  # Print the map
+
 
 m1 <- leaflet() %>%
   addTiles() %>% 
-  addMarkers(lng=-71.09971, lat=42.34956, popup="Boston University")%>%
-  addMarkers(lng=-71.12006, lat=42.36523, popup="Harvard Business School")%>%
-  addMarkers(lng=-71.061, lat=42.35, popup="Tufts University School of Medicine")%>%
-  addMarkers(lng=-71.089011, lat=42.346689, popup="Berklee College of Music")%>%
-  addMarkers(lng=-71.088892, lat=42.3400479, popup="Northeastern University")
+  addMarkers(lng=-71.0724610662797, lat=42.3407376, popup="Blackstone Elementary")%>% 
+  addMarkers(lng=-71.03048029238417, lat=42.3785452983998, popup="Kennedy Patrick Elem")
 m1
 
-m3<-qmplot(Longitude, Latitude, data = college, maptype = "watercolor", zoom = 3,
-           color = I("red"), size = I(2.5))
-m3
 
-
-
-m4<-qmplot(Longitude, Latitude, data = college, 
-           color = I("red"), size = I(2.5))
-
+m4<-qmplot(coords.x1, coords.x2, data = Boston, 
+           color = I("black"), size = I(2.5))
 m4
 
+
+m6<-qmplot(coords.x1, coords.x2, data = Public_Schools, 
+           color = I("black"), size = I(2.5))
+m6
+
+m5<-qmplot(coords.x1, coords.x2, data = Roxbury)
+m5
+
+
 ui <- dashboardPage(
-  dashboardHeader(title = "Boston Universities and colleges"),
+  dashboardHeader(title = "Boston Public Schools "),
   dashboardSidebar(
     sidebarMenu(
       menuItem("About the Dataset ", tabName = "about", icon = icon("info")),
@@ -92,7 +99,7 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             status = "primary",
             collapsible = TRUE,
-            print("The dataset in coming from https://data.boston.gov/dataset/colleges-and-universities. ")
+            print("The dataset in coming from https://data.boston.gov/dataset/public-schools. ")
             )
             ),
         fluidRow(
@@ -102,7 +109,7 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             status = "primary",
             collapsible = TRUE,
-            print("There are 60 observations in the dataset with 28 variables. Major variables that I have chosen is 
+            print("There are 131 observations in the dataset with 18 variables. Major variables that I have chosen is 
                   Longitude and Latitude. Based on geometric locations of universities and colleges, I choose latitude and longitude variables to analyze.")
             )
             )
@@ -116,28 +123,22 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             status = "primary",
             collapsible = TRUE,
-            print("The goal of mapping is to find the location of Boston University and some other schools at Boston, such as Harvard Business School,
-           Tufts Univerisity School of Medicine, Berklee College of Music, Northeastern Univeristy.
+            print("The goal of mapping is to find the location of Public Schools at Boston.
                   ")
             
             )),
-        fluidRow(
-          box(
-            title = "Location of Boston University",
-            width = 12,
-            solidHeader = TRUE,
-            status = "primary",
-            collapsible = TRUE,
-        leafletOutput("map1"))),
+       
         
         fluidPage(
         selectInput("Maps","Maps",
-                    choices = c("Map1",
-                                "Map2")),
-        conditionalPanel("input.Maps =='Map1'",
+                    choices = c("Boston",
+                                "Public_Schools in all area","Roxbury")),
+        conditionalPanel("input.Maps =='Boston'",
                          plotOutput("Map1")),
-        conditionalPanel("input.Maps =='Map2'",
-                         plotOutput("Map2"))
+        conditionalPanel("input.Maps =='Public_Schools in all area'",
+                         plotOutput("Map2")),
+        conditionalPanel("input.Maps =='Roxbury'",
+                         plotOutput("Map3"))
              )
       
       ), 
@@ -147,14 +148,15 @@ ui <- dashboardPage(
       tabItem(
         tabName = "explain",
         
+      
         fluidRow(
-              box(
-                title = "Location of different Schools",
-                width = 12,
-                solidHeader = TRUE,
-                status = "primary",
-                collapsible = TRUE,
-                leafletOutput("map2")))
+          box(
+            title = "Location of Public Schools",
+            width = 12,
+            solidHeader = TRUE,
+            status = "primary",
+            collapsible = TRUE,
+            leafletOutput("map1")))
         
           )
       
@@ -166,27 +168,16 @@ ui <- dashboardPage(
 server <- function(input, output) {
   output$map1 <- renderLeaflet({
     leaflet() %>%
-      addTiles() %>%  # Add default OpenStreetMap map tiles
-      addMarkers(lng=-71.09971, lat=42.34956, popup="Boston University")%>%
-      addMarkers(lng=-71.12006, lat=42.36523, popup="Harvard Business School")%>%
-      addCircles(data = s.sf, lat = ~Latitude, lng = ~Longitude, weight = 3)
-  
-  })
-  output$map2 <- renderLeaflet({
-    leaflet() %>%
       addTiles() %>% 
-      addMarkers(lng=-71.09971, lat=42.34956, popup="Boston University")%>%
-      addMarkers(lng=-71.12006, lat=42.36523, popup="Harvard Business School")%>%
-      addMarkers(lng=-71.061, lat=42.35, popup="Tufts University School of Medicine")%>%
-      addMarkers(lng=-71.089011, lat=42.346689, popup="Berklee College of Music")%>%
-      addMarkers(lng=-71.088892, lat=42.3400479, popup="Northeastern University")
-    
+      addMarkers(lng=-71.0724610662797, lat=42.3407376, popup="Blackstone Elementary")%>% 
+      addMarkers(lng=-71.03048029238417, lat=42.3785452983998, popup="Kennedy Patrick Elem")
   })
-  output$Map1 <- renderPlot({m3
+  output$Map1 <- renderPlot({m4
   })
-  output$Map2 <- renderPlot({m4
+  output$Map2 <- renderPlot({m6
   })
-  
+  output$Map3 <- renderPlot({m5
+  })
   
 }
 
