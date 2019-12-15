@@ -1,0 +1,485 @@
+---
+title: "Yelp Rating Prediction"
+author: "Yuanyuan Lin"
+date: "12/11/2019"
+output: powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Table of Content
+- Exploratory Data Analysis
+- Sentiment Analysis on Customer Reviews
+- Mapping for Restaurants
+- Cluster Analysis
+- Topic Modeling
+- PCA
+
+## Introduction 
+- Significant rise in the importance of customer reviews
+- Yelp is currently the most widely used restaurant across United States. 
+- Yelp rating prediction could help improve Yelp user's experience.
+- Use Latent Dirichlet allocation(LDA) for topic modeling
+
+## EDA
+
+As the world cloud graph show below,  we found the most common words are "food", "time" and "service", "nice", "love" and "service". We would like to learn the importance of having high quality of service in restaurants.
+
+```{r include = FALSE}
+library(tidyverse)
+library(tidytext)
+library(knitr)
+library(textdata)
+library(magrittr)
+library(wordcloud)
+library(magrittr)
+library(ggthemes)
+summary(cars)
+review<-read.csv("review.csv")
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+comment<-data.frame(review$text)
+comment$review.comments<-as.character(comment$review.text)
+tidy_word_com <- comment %>%
+  unnest_tokens(word,review.comments)
+tidy_word_com %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100,colors = brewer.pal(7, 'Dark2'), random.order = FALSE,rot.per=0.35))
+```
+
+
+## Most Common Words in Review
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#most common words in the review by table
+word_counts <-tidy_word_com %>% anti_join(stop_words, by="word")%>% count(word, sort = TRUE)
+#change table into kable
+library(magrittr)
+library(knitr)
+knitr::kable(head(word_counts))%>%kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Sentiment Analysis on Customer Reviews
+
+:::::::::::::: {.columns}
+::: {.column}
+Used bing to get sentiment count by doing single word and bigram analysis.
+:::
+::: {.column}
+Process the opinion for restaurants computationally for identifying and categorizing it
+:::
+::::::::::::::
+
+
+## Most Common Positive and negative words
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#Most Common Positive and negative words
+bing_word_counts <- tidy_word_com %>%
+  inner_join(get_sentiments("bing")) %>% 
+  count(word, sentiment, sort = TRUE)%>% 
+  ungroup()
+bing_word_counts %>%
+group_by(sentiment) %>%
+top_n(10) %>%
+ungroup() %>%
+mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment",
+x = NULL) + coord_flip()+
+scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+ theme_pander()
+```
+
+
+## Word Map on Sentiment Analysis
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+library(reshape2)
+tidy_word_com %>%
+inner_join(get_sentiments("bing")) %>%
+count(word, sentiment, sort = TRUE) %>%
+acast(word ~ sentiment, value.var = "n", fill = 0) %>% 
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+```
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE,results="hide"}
+comment_sample<-review[sample(nrow(review), 5000), ]
+write.csv(comment_sample,file="comment_sample.csv")
+comment_sample<-read.csv("comment_sample.csv")
+#index<-sample(nrow(review),5000,replace=F)
+#index<-as.data.frame(index)
+#newdata<-data[index,]
+#comment<-data.frame(review$text)
+
+comment_sam<-data.frame(comment_sample$text)
+comment_sam$comment_sam<-as.character(comment_sam$comment_sam)
+#relationship between words
+library(dplyr)
+library(tidytext)
+comment_bigrams<-comment_sam%>%
+unnest_tokens(bigram,comment_sam,token="ngrams",n= 2)
+
+#couting the most common bigrams
+comment_bigrams%>% count(bigram, sort = TRUE)
+
+#spilt a column into multiple columns based on delimiter,remove cases where either is a stop word
+library(tidyr)
+bigrams_separated <- comment_bigrams %>%
+      separate(bigram, c("word1", "word2"), sep = " ")
+bigrams_filtered <- bigrams_separated %>%
+      filter(!word1 %in% stop_words$word) %>%
+      filter(!word2 %in% stop_words$word)
+ # new bigram counts:
+bigram_counts <- bigrams_filtered %>% count(word1, word2, sort = TRUE)
+
+
+#use bigrams to provide context in sentiment analysis
+bigrams_separated %>% 
+  filter(word1 == "not") %>% 
+  count(word1, word2, sort = TRUE)
+
+#most frequent words that were preceded by “not” and were associated with a sentiment
+AFINN <- get_sentiments("afinn")
+not_words <- bigrams_separated %>% 
+  filter(word1 == "not") %>%
+  inner_join(AFINN, by = c(word2 = "word")) %>% 
+  count(word2, value,sort = TRUE) %>% 
+  ungroup()
+```
+
+
+## Most Frequent Words that are preceded by "not"
+```{r,echo=FALSE}
+
+library(ggthemes)
+not_words %>%
+mutate(contribution = n * value) %>% arrange(desc(abs(contribution))) %>%
+head(20) %>%
+mutate(word2 = reorder(word2, contribution)) %>% ggplot(aes(word2, n * value, fill = n * value > 0)) + 
+  geom_col(show.legend = FALSE) +
+xlab("Words preceded by \"not\"") +
+ylab("Sentiment score * number of occurrences") + coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+ theme_pander() 
+```
+
+## Common Bigram Graph
+
+```{r include = FALSE}
+library(igraph)
+#visualize a network of bigrams
+bigram_counts
+# filter for only relatively common combinations
+bigram_graph <- bigram_counts %>%
+  filter(n > 20) %>%
+  graph_from_data_frame()
+
+```
+
+```{r,echo=FALSE}
+#convert igraph object into a ggraph
+library(ggraph)
+    set.seed(201)
+    ggraph(bigram_graph, layout = "fr") +
+      geom_edge_link() +
+      geom_node_point() +
+      geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+```
+
+
+
+
+## Mapping to Location Restaurant in OH
+
+The result of the distribution of yelp restaurants in OH does not looks good in leaflet since the pop-up logo is too large on the graph. But using ggmap, it gets more clear on the graph. We are able to notice that most restaurats are centered around the capital of Ohio, which is Columbus. 
+
+
+```{r,echo=FALSE}
+business<-read.csv("business.csv")
+#library(dplyr)
+OH<-filter(business,state=="OH")
+Latitude<-OH[,8]
+Latitude<-data.frame(Latitude)
+Latitude$long<-OH[,9]
+library(leaflet)
+Latitude %>%
+  leaflet() %>%
+  addTiles() %>%
+  addMarkers(popup="sites")
+```
+
+## Mapping to Location Restaurant in OH
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#distribution of restaurants in OH using ggmap
+library(ggmap)
+m6<-qmplot(long, Latitude, data = Latitude, 
+           color = I("black"), size = I(2.5))
+m6
+```
+
+## Cluster Analysis
+- applied the k-means cluster analysis
+- efficient model for classifying observations
+- available to have a general prediction for restaurants rating
+
+
+## Cluster Analysis
+
+
+```{r,message=FALSE,warning=FALSE,results="hide"}
+user<-read.csv("user.csv")
+#drop irrelevant columns
+user<-user[,-c(1,9,10)]
+# Prepare Data
+user<- na.omit(user) # listwise deletion of missing
+user$user_id<-as.numeric(user$user_id) 
+user$name<-as.numeric(user$name)
+user$yelping_since<-as.numeric(user$yelping_since)
+user_cluster<-user[sample(nrow(user), 5000), ]
+set.seed(123456789) ## to fix the random starting clusters
+user_cluster <- scale(user_cluster) # standardize variables
+# Determine number of clusters
+wss <- (nrow(user_cluster)-1)*sum(apply(user_cluster,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(user_cluster,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares")
+```
+
+
+```{r,message=FALSE,warning=FALSE,results="hide"}
+
+# K-Means Cluster Analysis
+fit <- kmeans(user_cluster, 6) # 5 cluster solution
+# get cluster means
+aggregate(user_cluster,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+user_cluster <- data.frame(user_cluster, fit$cluster)
+
+# Ward Hierarchical Clustering
+d <- dist(user_cluster, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=6) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters
+rect.hclust(fit, k=6, border="red")
+
+user_cluster_num<-user[sample(nrow(user), 5000), ]
+set.seed(123456789) ## to fix the random starting clusters
+grpMeat <- kmeans(user_cluster_num[,c("useful","funny")], centers=6, nstart=10)
+
+## list of cluster assignments
+o=order(grpMeat$cluster)
+head(data.frame(user_cluster_num$name[o],grpMeat$cluster[o]))
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+plot(user_cluster_num$useful, user_cluster_num$funny, type="n", xlim=c(3,6000),ylim=c(3,6000), xlab="Red Meat", ylab="White Meat")
+text(x=user_cluster_num$useful, y=user_cluster_num$useful, labels=user_cluster_num$name,col=grpMeat$cluster+1)
+```
+
+## Cluster Analysis
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+library(cluster)    # clustering algorithms
+library(factoextra)
+library(predkmeans)
+library(SwarmSVM)
+library(ClusterR)
+business<-read.csv("business.csv")
+star<-aggregate(business$stars, list(business$name), mean)
+colnames(star)<-c("Name","Rating")
+index<-sample(nrow(star),nrow(star)/2,replace = F)
+#spilt data into train and test set
+train<-data.frame(star$Rating)[index,]
+test<-data.frame(star$Rating)[-index,]
+#create empty vectors with 10 zeros
+data<-double(10)
+#try cluster sizes from 2 to 11
+for (i in 2:11){
+  kc <- kmeans(train,i, nstart = 50)
+  centers <- kc$centers
+#get prediction from test set
+  assignments <- predict_KMeans(as.data.frame(test),kc$centers)
+#calculate wss from test set
+  wss=0
+  k=1
+  
+  while (k<=i){
+#perform 2 fold cross validation
+    a<-assignments[assignments==k]
+    wss <-wss+sum((a-centers[k])^2)
+    k=k+1
+  }
+  data[i-1]<-wss
+}
+
+cluster<-seq(2,11)
+data<-cbind(data,cluster)
+data<-data.frame(data)
+colnames(data)<-c("WSS","Cluster_size")
+ggplot(data,aes(Cluster_size,WSS))+
+  geom_line()+
+  geom_point()+scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+ theme_pander()
+# 5 clusters is the best
+
+# predict 
+kc <- kmeans(train,5, nstart = 50)
+centers <- kc$centers
+assignments <- predict_KMeans(as.data.frame(test),kc$centers)
+
+# get clusters
+# first one 
+fir<-assignments[assignments==1]
+
+# predict
+test<-data.frame(test)
+k5 <- kmeans(train,5, nstart = 50)
+centers <- k5$centers
+predicted <- predict_KMeans(as.data.frame(test),centers)
+predicted<-as.numeric(predicted)
+test$label<-as.factor(predicted)
+colnames(test)<-c('rating','label')
+
+```
+
+## Cluster Analysis
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#get boxplot for each rating prediction
+p<-ggplot(test, aes(x=label, y=rating, color=label,fill=label)) +
+  geom_boxplot()+scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+ theme_pander()
+p
+```
+
+## Topic Modeling
+
+```{r,message=FALSE,warning=FALSE,results="hide"}
+
+library(dplyr)
+library(tidytext)
+#convert text into document term matrix
+text<-review$text
+text<-as.data.frame(text)
+text$text<-as.character(text$text)
+#text_sample<-text[sample(nrow(text), 500), ]
+#text_sample<-as.data.frame(text_sample)
+#text_sample$text_sample<-as.character(text_sample$text_sample)
+#tidy_text<-text%>%
+ # unnest_tokens(word, text) %>%
+ #  anti_join(stop_words) %>%
+ # count(word)
+
+#tidy_text[tidy_text==0] <- 0.001
+#tidy_text<-tidy_text[-c(1:160),]
+#tidy_text<-tidy_text%>% 
+ # count(word)%>%
+ #cast_sparse(word, n)
+
+tidy_text <-text %>%
+  #break review text into individual tokens and tranfrom into a tidy data structure
+  unnest_tokens(word, text)%>%
+      anti_join(stop_words)%>%
+  count(word)
+tidy_text$id<-1
+tidy_text<-tidy_text[-c(1:1543),]
+
+#convert to a DocumentTermMatrix object from tm
+tidy_text<-tidy_text%>% 
+  count(word,id)%>%
+  cast_dtm(id,word,n)
+
+#set a seed so that the output of the model is predictable
+library(topicmodels)
+lda<-LDA(tidy_text,k=2,control=list(seed=1234))
+lda
+
+#extracting the per-topic-per-word probabilities
+library(tidytext)
+ap_topics <- tidy(lda, matrix = "beta")
+ap_topics
+```
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+#find the 10 terms that are most common within each topic
+ap_top_terms <- ap_topics %>%
+      group_by(topic) %>%
+      top_n(10, beta) %>%
+      ungroup() %>%
+      arrange(topic, -beta)
+ap_top_terms %>%
+mutate(term = reorder(term, beta)) %>% ggplot(aes(term, beta, fill = factor(topic))) + geom_col(show.legend = FALSE) +
+facet_wrap(~ topic, scales = "free") + coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+  theme_pander() 
+```
+
+
+### Topic Modeling
+
+:::::::::::::: {.columns}
+::: {.column}
+Create document term matrix for topic modeling.
+:::
+::: {.column}
+Latent Dirichlet Allocation helps to discover latent themes in the restaurant texts descriptions.
+:::
+::::::::::::::
+
+## Topic Modeling
+
+```{r,message=FALSE,warning=FALSE,results="hide"}
+#consider difference among topics
+library(tidyr)
+beta_spread <- ap_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  spread(topic, beta) %>%
+  filter(topic1 > .00001 | topic2 > .00001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+head(beta_spread)
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#filter for relatively common words that have a beta great than 0.00001
+library(magrittr)
+beta_spread %>%top_n(10, log_ratio) %>%ggplot(aes(term, log_ratio, fill = term)) + geom_col(show.legend = TRUE) +
+ coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+ scale_color_viridis_d(option = "viridis") +
+  theme_pander() 
+
+```
+
+
+
+## PCA
+
+:::::::::::::: {.columns}
+::: {.column}
+Principal Component Analysis is used to improve the prediction of star rating.
+:::
+::: {.column}
+More detailed analysis of PCA and how it implements in regression can be found in the report
+:::
+::::::::::::::
+
+

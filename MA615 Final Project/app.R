@@ -1,0 +1,657 @@
+
+library(shiny)
+library(readxl)
+library(nlme)
+library(tidyverse)
+library(ggfortify)
+library(lubridate)
+library(grid)
+library(gridExtra)
+library(plotly)
+library(devtools)
+library(stringr)
+library(grid)
+library(shinydashboard)
+library(tidyverse)
+library(ggthemes)
+library(psych)
+library(dashboardthemes)
+library(DT)
+
+library(tidyverse)
+#library(tidytext)
+#library(knitr)
+#library(textdata)
+#library(magrittr)
+#library(wordcloud)
+library(magrittr)
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra)
+library(predkmeans)
+library(SwarmSVM)
+library(ClusterR)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#load relevant datasets
+business<-read.csv("business.csv")
+user<-read.csv("user.csv")
+review<-read.csv("review.csv")
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#drop irrelevant columns
+user<-user[,-c(1,9,10)]
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#omit NA values
+user<-na.omit(user)
+business_clean<-business[,-c(1,2,4:9,49:57)]
+#library(tidyverse)
+#library(knitr)
+#library(magrittr)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+library(wordcloud)
+library(tidytext)
+library(textdata)
+library(dplyr)
+#text analysis on customers review, Select 5000 random rows
+comment_sample<-review[sample(nrow(review), 5000), ]
+write.csv(comment_sample,file="comment_sample.csv")
+comment_sample<-read.csv("comment_sample.csv")
+#index<-sample(nrow(review),5000,replace=F)
+#index<-as.data.frame(index)
+#newdata<-data[index,]
+#comment<-data.frame(review$text)
+comment_sam<-data.frame(comment_sample$text)
+comment_sam$comment_sam<-as.character(comment_sam$comment_sam)
+#break review text into individual tokens and tranfrom into a tidy data structure
+tidy_word_com <- comment_sam %>%
+  unnest_tokens(word,comment_sam)
+#remove stop words
+tidy_word_com %>%
+  anti_join(stop_words) %>%
+  #find the most common words in the reviews
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100,colors = brewer.pal(11, 'Dark2'), random.order = FALSE,rot.per=0.35))
+
+
+
+
+#most common words in the review by table
+word_counts <-tidy_word_com %>% anti_join(stop_words, by="word")%>% count(word, sort = TRUE)
+
+
+library(ggthemes)
+library(ggplot2)
+
+#most common words in the review
+diag_Plot<-tidy_word_com %>%
+  count(word, sort = TRUE) %>% # count the number of words and sort them by frequency 
+  anti_join(stop_words, by="word")%>%
+  filter(n > 700) %>% # filters the data to get only words that are used more than 80 times
+  mutate(word = reorder(word, n)) %>% #Sentiment Analysis with inner join 
+  ggplot() + # plot function
+  aes(x = word , y = n,fill=word,color=word) + # word on the x-axis, count (n) on the y-axis 
+  geom_col() + # we want to plot *col*umns
+  coord_flip() +
+  scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander() 
+ggplotly(diag_Plot)
+
+factor_Plot<-bing_word_counts %>%
+  #group by sentiment
+  group_by(sentiment) %>%
+  #select top ten result
+  top_n(10) %>%
+  ungroup() %>%
+  #add a column to count how many number in each word
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment",
+       x = NULL) + coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander()
+ggplotly((factor_Plot))
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+bing_word_counts <- tidy_word_com %>%
+  #find a sentiment score for each word using the Bing lexicon and inner_join()
+  inner_join(get_sentiments("bing")) %>% 
+  count(word, sentiment, sort = TRUE)%>% 
+  ungroup()
+knitr::kable(head(bing_word_counts))%>%kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#Most Common Positive and negative words
+bing_word_counts %>%
+  
+  #group by sentiment
+  group_by(sentiment) %>%
+  #select top ten result
+  top_n(10) %>%
+  ungroup() %>%
+  #add a column to count how many number in each word
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment",
+       x = NULL) + coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander()
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+library(reshape2)
+tidy_word_com %>%
+  #tag positive and negative words using inner join
+  inner_join(get_sentiments("bing")) %>%
+  #find the most positve and negative words
+  count(word, sentiment, sort = TRUE) %>%
+  #turn the data frame into a matrix with acast()
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>% 
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#relationship between words
+library(dplyr)
+library(tidytext)
+#examine pairs of two consecutive words
+comment_bigrams<-comment_sam%>%
+  unnest_tokens(bigram,comment_sam,token="ngrams",n= 2)
+head(comment_bigrams)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#couting the most common bigrams
+comment_bigrams%>% count(bigram, sort = TRUE)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+
+library(tidyr)
+#spilt a column into multiple columns based on delimiter,
+bigrams_separated <- comment_bigrams %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+#remove cases where either is a stop word
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+# new bigram counts:
+bigram_counts <- bigrams_filtered %>% count(word1, word2, sort = TRUE)
+bigram_counts
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#use bigrams to provide context in sentiment analysis
+bigrams_separated %>% 
+  filter(word1 == "not") %>% 
+  count(word1, word2, sort = TRUE)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#most frequent words that were preceded by “not” and were associated with a sentiment
+AFINN <- get_sentiments("afinn")
+not_words <- bigrams_separated %>% 
+  filter(word1 == "not") %>%
+  inner_join(AFINN, by = c(word2 = "word")) %>% 
+  count(word2, value,sort = TRUE) %>% 
+  ungroup()
+not_words
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+library(ggthemes)
+#visualize most frequent words that were preceded by “not” and were associated with a sentiment
+not_Plot<-not_words %>%
+  #multiply their score by the number of times they appear
+  mutate(contribution = n * value) %>% arrange(desc(abs(contribution))) %>%
+  head(20) %>%
+  mutate(word2 = reorder(word2, contribution)) %>% ggplot(aes(word2, n * value, fill = n * value > 0)) + 
+  geom_col(show.legend = FALSE) +
+  xlab("Words preceded by \"not\"") +
+  ylab("Sentiment score * number of occurrences") + coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander() 
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+library(igraph)
+#visualize a network of bigrams
+bigram_counts
+# filter for only relatively common combinations
+bigram_graph <- bigram_counts %>%
+  filter(n > 20) %>%
+  graph_from_data_frame()
+bigram_graph
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#convert igraph object into a ggraph
+library(ggraph)
+set.seed(201)
+#common bigrams in review, showing those that occcured more than 20 times and where neither word was a stop word
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+
+set.seed(2016)
+#add directionality with an arrow
+a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+#add edge_alpha aesthetic to link layer to make links transparent
+ggraph(bigram_graph, layout = "fr") + geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                                                     arrow = a, end_cap = circle(.07, 'inches')) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  # add theme that is useful for plotting networks
+  theme_void()
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#library(dplyr)
+#distribution of restaurants in OH
+OH<-filter(business,state=="OH")
+Latitude<-OH[,8]
+Latitude<-data.frame(Latitude)
+Latitude$long<-OH[,9]
+#library(leaflet)
+#Latitude %>%
+# leaflet() %>%
+# addTiles() %>%
+# addMarkers(popup="sites")
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#distribution of restaurants in OH using ggmap
+library(ggmap)
+m6<-qmplot(long, Latitude, data = Latitude, 
+           color = I("black"), size = I(2.5))
+m6
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+# Prepare Data
+user<- na.omit(user) # listwise deletion of missing
+user$user_id<-as.numeric(user$user_id) 
+user$name<-as.numeric(user$name)
+user$yelping_since<-as.numeric(user$yelping_since)
+user_cluster<-user[sample(nrow(user), 5000), ]
+set.seed(123456789) ## to fix the random starting clusters
+user_cluster <- scale(user_cluster) # standardize variables
+# Determine number of clusters
+wss <- (nrow(user_cluster)-1)*sum(apply(user_cluster,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(user_cluster,
+                                     centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+     ylab="Within groups sum of squares")
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+# K-Means Cluster Analysis
+fit <- kmeans(user_cluster, 6) # 5 cluster solution
+# get cluster means
+aggregate(user_cluster,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+user_cluster <- data.frame(user_cluster, fit$cluster)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+# Ward Hierarchical Clustering
+d <- dist(user_cluster, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=6) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters
+rect.hclust(fit, k=6, border="red")
+
+
+## ----echo=FALSE,message=FALSE,warning=FALSE---------------------------------------------------------------------------------------
+user_cluster_num<-user[sample(nrow(user), 5000), ]
+set.seed(123456789) ## to fix the random starting clusters
+grpMeat <- kmeans(user_cluster_num[,c("useful","funny")], centers=6, nstart=10)
+
+
+
+## ----warning=FALSE----------------------------------------------------------------------------------------------------------------
+## list of cluster assignments
+o=order(grpMeat$cluster)
+
+head(data.frame(user_cluster_num$name[o],grpMeat$cluster[o]))
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+plot(user_cluster_num$useful, user_cluster_num$funny, type="n", xlim=c(3,6000),ylim=c(3,6000), xlab="Red Meat", ylab="White Meat")
+text(x=user_cluster_num$useful, y=user_cluster_num$useful, labels=user_cluster_num$name,col=grpMeat$cluster+1)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+plot(user_cluster_num$useful, user_cluster_num$funny, type="n", xlim=c(3,2000),ylim=c(3,1500), xlab="Red Meat", ylab="White Meat")
+text(x=user_cluster_num$useful, y=user_cluster_num$useful, labels=user_cluster_num$name,col=grpMeat$cluster+1)      
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------
+business<-read.csv("business.csv")
+star<-aggregate(business$stars, list(business$name), mean)
+colnames(star)<-c("Name","Rating")
+index<-sample(nrow(star),nrow(star)/2,replace = F)
+#spilt data into train and test set
+train<-data.frame(star$Rating)[index,]
+test<-data.frame(star$Rating)[-index,]
+#create empty vectors with 10 zeros
+data<-double(10)
+#try cluster sizes from 2 to 11
+for (i in 2:11){
+  kc <- kmeans(train,i, nstart = 50)
+  centers <- kc$centers
+  #get prediction from test set
+  assignments <- predict_KMeans(as.data.frame(test),kc$centers)
+  #calculate wss from test set
+  wss=0
+  k=1
+  
+  while (k<=i){
+    #perform 2 fold cross validation
+    a<-assignments[assignments==k]
+    wss <-wss+sum((a-centers[k])^2)
+    k=k+1
+  }
+  data[i-1]<-wss
+}
+
+cluster<-seq(2,11)
+data<-cbind(data,cluster)
+data<-data.frame(data)
+colnames(data)<-c("WSS","Cluster_size")
+wss_Plot<-ggplot(data,aes(Cluster_size,WSS))+
+  geom_line()+
+  geom_point()+scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander()
+# 5 clusters is the best
+
+# predict 
+kc <- kmeans(train,5, nstart = 50)
+centers <- kc$centers
+assignments <- predict_KMeans(as.data.frame(test),kc$centers)
+
+# get clusters
+# first one 
+fir<-assignments[assignments==1]
+
+# 5 clusters is the best
+
+# predict
+test<-data.frame(test)
+k5 <- kmeans(train,5, nstart = 50)
+centers <- k5$centers
+predicted <- predict_KMeans(as.data.frame(test),centers)
+predicted<-as.numeric(predicted)
+test$label<-as.factor(predicted)
+colnames(test)<-c('rating','label')
+#get boxplot for each rating prediction
+p<-ggplot(test, aes(x=label, y=rating, color=label,fill=label)) +
+  geom_boxplot()+scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander()
+p
+
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#convert text into document term matrix
+library(dplyr)
+library(tidytext)
+
+text<-review$text
+text<-as.data.frame(text)
+text$text<-as.character(text$text)
+#text_sample<-text[sample(nrow(text), 500), ]
+#text_sample<-as.data.frame(text_sample)
+#text_sample$text_sample<-as.character(text_sample$text_sample)
+#tidy_text<-text%>%
+# unnest_tokens(word, text) %>%
+#  anti_join(stop_words) %>%
+# count(word)
+
+#tidy_text[tidy_text==0] <- 0.001
+#tidy_text<-tidy_text[-c(1:160),]
+#tidy_text<-tidy_text%>% 
+# count(word)%>%
+#cast_sparse(word, n)
+
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+tidy_text <-text %>%
+  #break review text into individual tokens and tranfrom into a tidy data structure
+  unnest_tokens(word, text)%>%
+  anti_join(stop_words)%>%
+  count(word)
+tidy_text$id<-1
+tidy_text<-tidy_text[-c(1:1543),]
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#convert to a DocumentTermMatrix object from tm
+tidy_text<-tidy_text%>% 
+  count(word,id)%>%
+  cast_dtm(id,word,n)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#set a seed so that the output of the model is predictable
+library(topicmodels)
+lda<-LDA(tidy_text,k=2,control=list(seed=1234))
+lda
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#extracting the per-topic-per-word probabilities
+library(tidytext)
+ap_topics <- tidy(lda, matrix = "beta")
+ap_topics
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+#find the 10 terms that are most common within each topic
+ap_top_terms <- ap_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+beta<-ap_top_terms %>%
+  mutate(term = reorder(term, beta)) %>% ggplot(aes(term, beta, fill = factor(topic))) + geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") + coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander() 
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#consider difference among topics
+library(tidyr)
+beta_spread <- ap_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  spread(topic, beta) %>%
+  filter(topic1 > .00001 | topic2 > .00001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+head(beta_spread)
+
+
+## ----message=FALSE,warning=FALSE--------------------------------------------------------------------------------------------------
+#filter for relatively common words that have a beta great than 0.00001
+library(magrittr)
+log<-beta_spread %>%top_n(10, log_ratio) %>%ggplot(aes(term, log_ratio, fill = term)) + geom_col(show.legend = TRUE) +
+  coord_flip()+
+  scale_fill_viridis_d(option = "viridis") +
+  scale_color_viridis_d(option = "viridis") +
+  theme_pander() 
+
+
+
+## ---------------------------------------------------------------------------------------------------------------------------------
+user<-read.csv("user.csv")
+user$X<-NULL
+user$user_id<-NULL
+user$name<-NULL
+user$yelping_since<-NULL
+user$friends<-NULL
+user$elite<-NULL
+user<-na.omit(user)
+mod1<-princomp(na.omit(user),cor = T)
+# take a look a out cumulative proporation
+summary(mod1)
+# take first sixth pcs
+predictors<-mod1$scores[,3]
+data<-data.frame(predictors)
+data$star<-user$average_stars
+mo1<-lm(star~.,data=data)
+# use loocv
+summary(mo1)
+
+mod2<-lm(user$average_stars~.,data=user)
+
+#######################################################################################################
+ui <- fluidPage(
+  
+  titlePanel("Yelp Rating Prediction"),
+  
+  navlistPanel(
+    
+    tabPanel("Introduction",
+             fluidRow(print("The rise in E — commerce, has brought a significant rise in the importance of customer reviews. There are hundreds of review sites online and massive amounts of reviews for every product. Reviews could be scores, descriptions etc. Yelp is currently the most widely used restaurant across United States. In order to improve Yelp users’ experience, there are some main methods to approach. The first one is sentiment analysis which is based on comments from customers. Also, we can use Latent Dirichlet allocation(LDA) for fitting a topic modeling. The other methods are using cluster analysis and Principle Component Analysis.The main goal of this project is to predict restaurant rating. Yelp rating prediction could help improve Yelp user’s experience.
+.")),
+             fluidRow(print("
+The dataset used here is from yelp open dataset website. Some of data are using API to get while others are downloaded from offical website. The data that are able to loaded using Yelp open dataset API has large limitations. Each time I only able to get 50 observations. I can only analysis for example some restaurants from Columbus,OH using API. As a result, I planned to download from official yelp open dataset website. This project mainly focused on review, users and business datasets from Yelp open data source and I mainly discuss the restaurants in OH.")
+                               ))
+        
+      ,
+    tabPanel("Exploratory Data Analysis",
+             fluidRow(print("By graphing the world cloud graph based on customer reviews, we found the most common words are “food”, “time” and “service”, “nice”, “love” and “service”. We would like to learn the importance of having high quality of service in restaurants.")
+             ),
+             fluidRow(DT::dataTableOutput("head")),
+             fluidRow(plotlyOutput("diag"))
+            
+             
+    ),
+    tabPanel("Sentimeng Analysis",
+             fluidRow(DT::dataTableOutput("head1")),
+             
+             fluidRow(plotlyOutput("factor")),
+             fluidRow(plotlyOutput("not"))
+             ),
+    tabPanel("Mapping",
+             fluidRow(plotOutput("map"))
+             
+             ),
+    tabPanel("Cluster Analysis",
+             fluidRow(plotOutput("wss")),
+             fluidRow(plotOutput("kmeans"))
+             
+             ),
+    tabPanel("Topic Modeling",
+             fluidRow(plotlyOutput("beta")),
+             fluidRow(plotlyOutput("ratio"))
+             
+             ),
+    tabPanel("PCA",
+             fluidRow(print("Principal Component Analysis is used to improve the prediction of star rating."
+                            )
+                    
+        
+             
+             
+             
+             )
+  
+)))
+
+server <-function(input, output) {
+  output$diag<-renderPlotly({
+    
+    ggplotly(diag_Plot)
+    
+  })
+  
+  output$head<-DT::renderDataTable(
+    word_counts
+    )
+  
+  output$head1<-DT::renderDataTable(
+    bing_word_counts
+  )
+  
+  output$ratio<-renderPlotly({
+    
+    ggplotly(log)
+    
+  })
+  
+  
+  output$factor<-renderPlotly({
+    
+    ggplotly(factor_Plot)
+    
+  })
+  
+  output$map<-renderPlot({
+    
+    m6
+    
+  })
+  
+  output$kmeans<-renderPlot({
+    
+    p
+    
+  })
+  
+  
+  output$wss<-renderPlot({
+    
+    wss_Plot
+    
+  }) 
+  
+  output$not<-renderPlotly({
+    
+    ggplotly(not_Plot)
+    
+  })
+  
+  output$beta<-renderPlotly({
+    
+    ggplotly(beta)
+    
+  })
+  
+  
+  
+  output$picture<- renderImage({
+    Leg<-"yelp_shiny/food.jpg"
+  })
+  
+}
+
+
+shinyApp(ui, server)
